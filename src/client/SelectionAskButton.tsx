@@ -7,7 +7,7 @@ import {
 } from 'react'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactElement } from 'react'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { buildQuote } from './quote.ts'
+import { appendQuote, buildQuote } from './quote.ts'
 
 /** The slot's composed props: owner share {} + session kit + global kit. */
 type SelectionAskProps = PropsRuntime<'conversation.input.overlay'>
@@ -83,12 +83,15 @@ function readSelection(): SelectionState | null {
  *
  * Clicking the pill transforms it in place into a small compose card: the
  * selection is pre-quoted into the textarea, the user types the follow-up
- * right there, and Enter sends it through the official input machine
- * (`setDraft` + `submit`) without ever touching the resident composer.
+ * right there, and Enter saves it onto the resident composer draft
+ * (`setDraft` only — never auto-sends) so several selections can
+ * accumulate before one manual send.
  */
 export function SelectionAskButton({
+  useInput,
   inputActions,
 }: SelectionAskProps): ReactElement | null {
+  const draft = useInput((s) => s.draft)
   const [sel, setSel] = useState<SelectionState | null>(null)
   const [mode, setMode] = useState<SurfaceMode>('pill')
   const [pos, setPos] = useState<ButtonPos | null>(null)
@@ -172,21 +175,23 @@ export function SelectionAskButton({
     window.getSelection()?.removeAllRanges()
   }, [sel])
 
-  const send = useCallback(() => {
+  const save = useCallback(() => {
     const body = text.trim()
     if (!body) {
       close()
       return
     }
-    inputActions.setDraft(body)
-    inputActions.submit()
+    // Save-to-draft, never send: append the quoted comment to the resident
+    // composer so several selections can accumulate there before the user
+    // sends them in one message.
+    inputActions.setDraft(appendQuote(draft, body))
     close()
-  }, [text, inputActions, close])
+  }, [text, draft, inputActions, close])
 
   const onCardKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
-      send()
+      save()
     } else if (event.key === 'Escape') {
       event.preventDefault()
       close()
@@ -216,7 +221,7 @@ export function SelectionAskButton({
         />
         <div className="dsa-card-actions">
           <span className="dsa-card-hint">
-            Enter 发送 · Shift+Enter 换行 · Esc 取消
+            Enter 保存 · Shift+Enter 换行 · Esc 取消
           </span>
           <button
             type="button"
@@ -231,9 +236,9 @@ export function SelectionAskButton({
             type="button"
             className="dsa-card-btn dsa-card-btn-send"
             onMouseDown={(event) => event.preventDefault()}
-            onClick={send}
+            onClick={save}
           >
-            发送
+            保存到会话
           </button>
         </div>
       </div>

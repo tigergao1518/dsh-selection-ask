@@ -10,8 +10,9 @@ type SelectionAskProps = PropsRuntime<'conversation.input.overlay'>;
  *
  * Clicking the pill transforms it in place into a small compose card: the
  * selection is pre-quoted into the textarea, the user types the follow-up
- * right there, and Enter sends it through the official input machine
- * (`setDraft` + `submit`) without ever touching the resident composer.
+ * right there, and Enter saves it onto the resident composer draft
+ * (`setDraft` only — never auto-sends) so several selections can
+ * accumulate before one manual send.
  */
-export declare function SelectionAskButton({ inputActions, }: SelectionAskProps): ReactElement | null;
+export declare function SelectionAskButton({ useInput, inputActions, }: SelectionAskProps): ReactElement | null;
 export {};

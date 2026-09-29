@@ -9,11 +9,12 @@
  *   3. clicking the pill → the in-place compose card opens with the selection
  *      pre-quoted, the caret in the card, and the resident composer draft
  *      untouched;
- *   4. typing into the card and sending → `setDraft` receives quote + input
- *      and `submit` fires, the card closes;
- *   5. Escape closes the card;
- *   6. a selection in the composer is ignored;
- *   7. selecting text inside a document preview also shows the pill.
+ *   4. typing into the card and saving → `setDraft` appends quote + input onto
+ *      the draft and `submit` never fires (save-to-draft, not send);
+ *   5. a second selection accumulates onto the same draft;
+ *   6. Escape closes the card;
+ *   7. a selection in the composer is ignored;
+ *   8. selecting text inside a document preview also shows the pill.
  *
  * Run with `pnpm test:dom` (dev only; `pnpm verify` stays dependency-free).
  */
@@ -64,11 +65,12 @@ const check = (name, ok, detail = '') => {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 40))
 
 // Standard kit faces the slot framework normally supplies. The compose card is
-// the only writer: setDraft fires once per send, submit once per send.
+// save-only: setDraft appends onto the draft, submit must never fire. The
+// useInput face reads the accumulated draft so appends compose for real.
 const drafts = []
 let submits = 0
 const inputActions = { setDraft: (value) => drafts.push(value), submit: () => { submits += 1 } }
-const useInput = (selector) => selector({ draft: '' })
+const useInput = (selector) => selector({ draft: drafts.join('\n\n') })
 
 const container = document.getElementById('root')
 const root = createRoot(container)
@@ -116,22 +118,40 @@ if (pill) {
   check('clicking opens the in-place compose card', false, 'pill missing')
 }
 
-// 4. type a follow-up and send → setDraft + submit, card closes
+// 4. type a follow-up and save → appends onto the draft, submit never fires
 const ta = container.querySelector('.dsa-card textarea')
 if (ta) {
   typeInto(ta, '> 这是一段被选中的回答文字。\n\n为什么第二段结论相反？')
   await settle()
   container.querySelector('.dsa-card .dsa-card-btn-send')?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
   await settle()
-  const sent = drafts.at(-1) ?? ''
-  check('sending writes quote + follow-up via setDraft', sent === '> 这是一段被选中的回答文字。\n\n为什么第二段结论相反？', JSON.stringify(sent.slice(0, 48)))
-  check('sending submits through the input machine', submits === 1, `submits=${submits}`)
-  check('card closes after send', container.querySelector('.dsa-card') === null)
+  const saved = drafts.at(-1) ?? ''
+  check('saving appends quote + follow-up onto the draft', saved === '> 这是一段被选中的回答文字。\n\n为什么第二段结论相反？', JSON.stringify(saved.slice(0, 48)))
+  check('saving never submits (save-to-draft, not send)', submits === 0, `submits=${submits}`)
+  check('card closes after save', container.querySelector('.dsa-card') === null)
 } else {
-  check('sending writes quote + follow-up via setDraft', false, 'card textarea missing')
+  check('saving appends quote + follow-up onto the draft', false, 'card textarea missing')
 }
 
-// 5. Escape closes the card
+// 5. a second selection accumulates onto the same draft
+select(document.getElementById('preview'))
+await settle()
+container.querySelector('button.dsa-button')?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+await settle()
+const ta2 = container.querySelector('.dsa-card textarea')
+if (ta2) {
+  typeInto(ta2, '> 文档预览里的一段结论文字。\n\n这里的口径和上面不一致。')
+  await settle()
+  container.querySelector('.dsa-card .dsa-card-btn-send')?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+  await settle()
+  const draftNow = drafts.join('\n\n')
+  check('second save accumulates onto the same draft', draftNow.includes('为什么第二段结论相反') && draftNow.includes('这里的口径和上面不一致'), `len=${draftNow.length}`)
+  check('still no submit after two saves', submits === 0, `submits=${submits}`)
+} else {
+  check('second save accumulates onto the same draft', false, 'card missing')
+}
+
+// 6. Escape closes the card
 select(document.getElementById('transcript'))
 await settle()
 container.querySelector('button.dsa-button')?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
@@ -143,7 +163,7 @@ if (openTa) {
 }
 check('Escape closes the card', container.querySelector('.dsa-card') === null && container.querySelector('button.dsa-button') === null)
 
-// 6. composer selection stays ignored
+// 7. composer selection stays ignored
 const before = drafts.length
 select(document.getElementById('draft'))
 await settle()
