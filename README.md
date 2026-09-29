@@ -40,9 +40,9 @@ DeepSeek Harness is a text-first terminal/agent workspace. But quoting a piece o
 >
 > | Plugin version | Works with |
 > |---|---|
+> | `0.1.2` | DSH ≥ `0.1.5-rc.2`, including `0.2.x` |
 > | `0.1.1` | DSH ≥ `0.1.5-rc.2` |
 > | `0.1.0` | DSH `0.1.0-rc.x` (the `dsh-client-runtime` era) |
-ation
 
 > **Using the DSH Desktop app?** Run the same command in the app's built-in
 > terminal **without `--profile`** — it targets the `desktop` profile
