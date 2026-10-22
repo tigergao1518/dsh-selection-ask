@@ -1,219 +1,169 @@
-# dsh-selection-ask
+# dsh-selection-ask (fork)
 
 ![banner](assets/banner.png)
 
-[![npm](https://img.shields.io/npm/v/dsh-selection-ask.svg)](https://www.npmjs.com/package/dsh-selection-ask)
-[![npm downloads](https://img.shields.io/npm/dm/dsh-selection-ask.svg)](https://www.npmjs.com/package/dsh-selection-ask)
-[![license](https://img.shields.io/npm/l/dsh-selection-ask.svg)](LICENSE)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![node](https://img.shields.io/badge/node-%5E22.19%20%7C%7C%20%3E%3D24-5FA04E?logo=nodedotjs)](https://nodejs.org/)
-[![stars](https://img.shields.io/github/stars/lzbaclz/dsh-selection-ask.svg)](https://github.com/lzbaclz/dsh-selection-ask)
 [![dsh plugin](https://img.shields.io/badge/dsh-plugin-4d6bfe)](https://github.com/deepseek-ai/deepseek-harness)
 
-[简体中文](README.zh.md) · [Installation](#installation) · [Usage](#usage) · [Development](#development) · [Troubleshooting](#troubleshooting) · [License](#license)
+[简体中文](README.zh.md) · [Fork & upstream](#fork--upstream) · [Features](#features) · [Install](#install) · [Usage](#usage) · [Development](#development) · [Troubleshooting](#troubleshooting) · [License](#license)
 
-**Select it. Quote it. Ask DeepSeek.**
+**Select it. Quote it. Ask DeepSeek — in the main thread or in a sidebar that inherits the whole context.**
 
-DeepSeek Harness is a text-first terminal/agent workspace. But quoting a piece of context back into the chat should be one gesture, not a copy-paste chore. **dsh-selection-ask** gives the web GUI a ChatGPT-style selection helper: select text in a conversation and a floating **「询问 DeepSeek」** button appears beside it. Click it — the selection is quoted into the composer as a Markdown blockquote (`> `), the composer is focused, and the caret is parked at the end. Just type your follow-up and send.
+---
 
-## Why
+> ### 🍴 This is a fork
+>
+> Built on **[lzbaclz/dsh-selection-ask](https://github.com/lzbaclz/dsh-selection-ask)** (MIT, by lzbaclz) — the original selection-quote plugin. Upstream's last release is **v0.1.1 (2026-09-17)** and it has not been updated since; this fork continues the work under the same MIT license.
+>
+> **What this fork adds:** sidebar conversations that inherit the main thread, read-only session review, and a set of DSH-upgrade compatibility fixes. See [What this fork adds](#what-this-fork-adds).
 
-- **Zero friction quoting** — the exact gesture you know from ChatGPT, in DeepSeek Harness.
-- **Official integration, no hacks** — writes through the harness's `inputActions.setDraft` input-machine API, so undo history and draft persistence keep working. It never touches DSH internals or DOM state directly.
-- **One command to install** — the compiled `lib/` is committed, so a `github:` install fetches ready-to-load artifacts with no build step.
+---
+
+## What this fork adds
+
+Upstream (v0.1.1) does one thing well: quote a selection into the composer. This fork keeps that and adds three capabilities.
+
+### 1. Sidebar conversation — inherit the context, never interrupt the main thread
+
+Select text in the main conversation, click **「开侧栏追问」**, and a new session opens in the right sidebar that **inherits the entire conversation up to now**. It has its own agent, its own message stream, and its own model route — but the main thread keeps running untouched, and nothing from the sidebar leaks back into the main model context.
+
+The selected quote is **pre-filled into the sidebar composer but not sent** — you decide when to send it.
+
+- **Inheritance is real, not a copy**: the child session is created with a seed built from the parent's events, so it genuinely carries the context (verified: a fresh sidebar session opens with the parent's full transcript, ~470 KB vs ~10 KB for an empty one).
+- **Never interrupts**: the main session's agent is untouched. No turn is cancelled, no in-flight work is disturbed.
+- **Same model**: the sidebar session reuses the parent's provider/model route, so answers stay consistent with the main thread.
+
+### 2. Session review — diagnose a conversation instead of guessing
+
+A **「复盘本会话」** entry in the session header opens a **read-only** review session. It does not inherit the transcript; it reads the session log from disk and distills process data — token spend per turn, error and retry clusters, context bloat composition, drifting turns — then reports what should change, grouped by priority.
+
+It cannot write files or run commands (read-only toolset, enforced by a dedicated preset), so it can never "helpfully" start editing your workspace mid-review.
+
+### 3. DSH-upgrade compatibility fixes
+
+This fork was driven by real breakage after DSH upgrades. Several fixes are structural and worth knowing about if you maintain a fork too:
+
+- **Sidebar sessions are created via `agents.create` with a hand-built seed** — not `sessions.fork`. `fork` never persists, and patching persistence separately collides with the resume path (`already exists`). `agents.create` completes store-entry + persist + write-ownership in one step.
+- **`provider`/`model` must go inside `agentOptions`** — they are *not* top-level fields. Writing them at the top level fails silently; the error only surfaces when you send a message (`agent "…" has no provider/model`).
+- **No `{{cwd}}` / `{{model}}` in persona templates** — `{{cwd}}` is not registered at all, and `{{model}}` only resolves when a session already has a request header (i.e. has made a model call). A brand-new sidebar session has neither, so persona assembly throws before any model request.
+- **Session-scoped selection**: with a sidebar session open beside the main one, both conversations mount a selection button listening to the same global `selectionchange`. Each instance now checks that the selection belongs to *its own* conversation, so 「存入本会话」 writes to the right composer.
 
 ## Features
 
+**From upstream (unchanged in behaviour):**
+
 - **Button follows the selection** — positioned at the selection's screen coordinates (`position: fixed`), clamped to the viewport, hidden once the selection scrolls away.
-- **Quotes conversation text only** — selections must be inside the transcript (`[data-conversation-scroll]`); selecting inside the composer itself does nothing (quoting the draft back into itself is nonsense).
-- **Quote-aware append** — every selected line gets a `> ` prefix; an empty draft is replaced, a non-empty draft gets the quote appended as its own paragraph (blank line in between).
-- **Session-scoped** — the button state resets on session switch, and the button hides while a takeover composer (question/approval) replaces the default one.
+- **Quotes conversation text only** — selections must be inside the transcript (`[data-conversation-scroll]`) or an in-app document preview; selecting inside the composer itself does nothing.
+- **Quote-aware append** — every selected line gets a `> ` prefix; an empty draft is replaced, a non-empty draft gets the quote appended as its own paragraph.
+- **Official integration, no hacks** — writes through the harness's `inputActions.setDraft` input-machine API, so undo history and draft persistence keep working.
+
+**Added by this fork:**
+
+- **Sidebar conversation** — see above. Two buttons on the compose card: 「开侧栏追问」 (secondary) and 「存入本会话」 (primary, Enter's default action).
+- **Session review** — see above.
+- **Sidebar start-page entry** — a 「发起旁路对话」 guide entry on the sidebar start page, so you can start a context-inheriting conversation without selecting anything first.
+- **Context-composition digest** — the review reports what is actually eating the context window (system prompt, tool schemas, tool results, injected memory), sorted by share, instead of just saying "tokens are high".
 
 ## Requirements
 
-- DeepSeek Harness with the `web` profile (`dsh web`), DSH packages of the `0.1.0-rc.6` era.
-- A browser page on the harness GUI (`http://127.0.0.1:3080` by default).
-- Building from source needs Node `^22.19.0 || >=24` and pnpm. **Installing the prebuilt package does not** (compiled `lib/` is committed).
+- DeepSeek Harness **Desktop app** (this fork's sidebar and review paths need the sidebar services; the plain selection-quote also works on the `web` profile).
+- DSH packages of the **0.2.1-rc.2** era or newer (tested against the 2026-10-17 Desktop build).
+- Installing the prebuilt package needs nothing; building from source needs Node `^22.19.0 || >=24` and pnpm.
 
 ## Install
 
-> **Requirements**: DSH ≥ `0.1.5-rc.2` (the `next` channel / the DSH Desktop app).
->
-> | Plugin version | Works with |
-> |---|---|
-> | `0.1.1` | DSH ≥ `0.1.5-rc.2` |
-> | `0.1.0` | DSH `0.1.0-rc.x` (the `dsh-client-runtime` era) |
-ation
+```bash
+dsh plugin --profile desktop add github:tigergao1518/dsh-selection-ask
+```
 
-> **Using the DSH Desktop app?** Run the same command in the app's built-in
-> terminal **without `--profile`** — it targets the `desktop` profile
-> automatically. The first install needs one restart of that DSH; later upgrades
-> hot-reload (no restart).
+Then restart DSH — host-half changes (the RPC route and the session factories) only take effect on restart. Client-half changes need only a page refresh.
 
-### 1. Install the package
-
-**From npm (recommended — one command)**
+**From a local clone:**
 
 ```bash
-dsh plugin --profile web add dsh-selection-ask
+git clone https://github.com/tigergao1518/dsh-selection-ask.git
+dsh plugin --profile desktop add link:/absolute/path/to/dsh-selection-ask
 ```
 
-**From GitHub** (latest commit, no build step needed)
-
-```bash
-dsh plugin --profile web add github:lzbaclz/dsh-selection-ask
-```
-
-Pin a release for reproducibility: `dsh plugin --profile web add github:lzbaclz/dsh-selection-ask#v0.1.1`
-
-**From a local clone**
-
-```bash
-git clone https://github.com/lzbaclz/dsh-selection-ask.git
-dsh plugin --profile web add link:/absolute/path/to/dsh-selection-ask
-```
-
-### 2. Activate it
-
-`dsh plugin add` already registers the package in your profile's `dsh.profile.bundles` list, and this package ships its own `cordis.patch.yml`, so the entry row is inserted **automatically at boot**. Choose **one** of the two activation paths — **never both**.
-
-**Path A — restart (zero YAML editing; recommended for new setups)**
-
-Restart `dsh web` (or just start it if it is not running). Done — no config files to edit.
-
-```bash
-# stop your dsh web process, then:
-dsh web
-```
-
-**Path B — hot activation on a running server (no restart)**
-
-Use raw `pnpm` (not `dsh plugin`, which would also register the bundle) so the bundles list is untouched, then patch the profile's patch layer, which DSH watches and applies live:
-
-```bash
-cd ~/.dsh/profiles/web
-pnpm add github:lzbaclz/dsh-selection-ask
-```
-
-Now open `~/.dsh/profiles/web/cordis.patch.yml` and **replace** the `[]` with the insert block — the file must stay a valid YAML list:
-
-```yaml
-# BEFORE:
-# Your patch layer for this dsh profile, applied after every bundle layer:
-# a top-level YAML array of loader patch entries (id-targeted config
-# overrides, disables, and insert lists; `!!js` expressions allowed).
-[]
-
-# AFTER:
-# Your patch layer for this dsh profile, applied after every bundle layer:
-# a top-level YAML array of loader patch entries (id-targeted config
-# overrides, disables, and insert lists; `!!js` expressions allowed).
-- insert:
-    - id: dsh-selection-ask
-      name: dsh-selection-ask
-      config: {}
-```
-
-Save the file and **refresh the browser page** — the plugin is loaded.
-
-> ⚠️ **Do not combine Path A and Path B** (e.g. `dsh plugin add` + a manual patch row): the entry would be registered twice and `dsh web` fails to boot with `duplicate loader entry id: dsh-selection-ask`.
->
-> ⚠️ **Do not append** the YAML block after an existing `[]` — that produces an invalid file and `dsh web` fails to boot with `failed to parse patches`. Replace the `[]` as shown above.
->
-> If your profile is not named `web`, substitute your profile name; if you set a custom harness home, substitute your `$DSH_HOME` for `~/.dsh`.
-
-**Older profiles** (created by an earlier dsh version) may lack the `autoInstallPeers: false` line in `pnpm-workspace.yaml`. Add it so pnpm never tries to auto-install pre-release peers:
-
-```yaml
-packages:
-  - .
-
-nodeLinker: hoisted
-autoInstallPeers: false
-```
-
-### 3. Verify
-
-Refresh the GUI page and select a sentence in the chat flow — the **「询问 DeepSeek」** button floats beside the selection. Click it: the text lands in the composer as a quote.
-
-### Upgrade & hot reload
-
-```sh
-dsh plugin --profile web add dsh-selection-ask@latest   # fetch the new version
-```
-
-The DSH composition always mounts the `dsh-client-hmr` chain, which watches
-installed plugin bundles and reloads them:
-
-- **Upgrading an installed plugin** (same entry, new file content) is hot — no app
-  restart, usually not even a page refresh.
-- **Installing a brand-new plugin** (a new roster entry) needs one DSH restart.
-
-Every side effect (style tag, locale dictionaries, slot registrations) is owned by
-the plugin fiber, so a hot reload never leaves stale code behind.
+> The compiled `lib/` is committed, so a `github:` or `link:` install fetches ready-to-load artifacts with no build step.
 
 ## Usage
 
-1. Select text anywhere in the conversation transcript.
-2. Click the **「询问 DeepSeek」** button floating beside the selection.
-3. The selection is quoted into the composer (`> selected text`), the composer is focused and the caret is at the end — type your follow-up question and send.
+### Quote into the main thread (upstream behaviour)
+
+1. Select text in the conversation transcript.
+2. Click **「询问 DeepSeek」**.
+3. The quote lands in the composer (`> selected text`), the composer is focused and the caret is at the end. Type your follow-up and send — or press **Enter** (default action) to confirm 「存入本会话」.
+
+### Ask in a sidebar without interrupting the main thread
+
+1. Select text in the main conversation.
+2. Click **「询问 DeepSeek」**, then **「开侧栏追问」** (or start from the sidebar start page's 「发起旁路对话」 entry).
+3. A sidebar session opens, inheriting the full context. The quote is pre-filled into its composer — **not sent**. Review it, add your question, and send when ready.
+
+The main session keeps running. Nothing you ask in the sidebar enters the main thread's model context.
+
+### Review a session
+
+Click **「复盘本会话」** in the session header. A read-only review session opens and reports on errors/retries, context bloat, drifting turns, and rewindable points.
 
 ## Uninstall
 
 ```bash
-dsh plugin --profile web remove dsh-selection-ask
+dsh plugin --profile desktop remove dsh-selection-ask
 ```
-
-If you used Path B, also remove the `insert` block from `cordis.patch.yml` (put the `[]` back), then refresh / restart.
 
 ## Troubleshooting
 
 | Symptom | Cause & fix |
 |---|---|
-| `dsh plugin add` fails with `ERR_PNPM_NO_MATCHING_VERSION` for `@deepseek-ai/...` | Your profile is missing the `autoInstallPeers: false` line in `pnpm-workspace.yaml` (older profiles), so pnpm tries to auto-install pre-release peers. Add the line (see below), remove any stray `@deepseek-ai/*` entries from the profile's `package.json` dependencies, delete the profile's `pnpm-lock.yaml`, then re-run. This plugin also marks every peer `optional`, so it never triggers auto-install. |
-| `dsh web` fails to boot: `failed to parse patches` | The insert block was appended after the file's existing `[]`, making the YAML invalid. Replace the `[]` with the block instead (see [Path B](#2-activate-it)). |
-| `dsh web` fails to boot: `duplicate loader entry id: dsh-selection-ask` | The package is registered twice — you used `dsh plugin add` (which adds the bundle) **and** a manual patch row. Remove one of the two. |
-| Installed via `dsh plugin add` but nothing appears after a page refresh | Bundle-list changes are composed at boot — restart `dsh web` (Path A), or use the hot-activation Path B. |
-| Button never appears after selecting text | Selection is outside the transcript (try selecting a chat message), the page wasn't refreshed after activation, or the `insert` row is missing. |
-| Button appears but click does nothing | An outdated bundle is cached — hard-refresh the page (Cmd/Ctrl+Shift+R). If the package was rebuilt locally, re-run `pnpm build` and re-`link:` it. |
-| Button gone while a question card is showing | Expected: the overlay hides with the default composer under a takeover. It returns when the default composer does. |
-| `dsh plugin add` fails | Any pnpm specifier works (`link:`, `github:`, tarball URL). Check the profile path under `~/.dsh/profiles/` and your Node version. |
+| `agent "…" has no provider/model` | The sidebar session has no model route. Send one message in the **main** session first (that establishes the request header the sidebar session inherits). This fork already passes `agentOptions` through; the error means there was nothing to inherit. |
+| `prompt variable "{{model}}" has no value` | A persona template still references `{{model}}`, which only resolves once a session has made a model call. Patch the preset's persona `prefix` to a variable-free string — this fork's `docs/check-persona-vars.mjs` scans for exactly this. |
+| Sidebar session fails to send with `SessionPersistenceNotFoundError` | You are on an older build that used `sessions.fork` (which never persists). Use this fork's `agents.create` path. |
+| Selection quote lands in the sidebar composer instead of the main one | Fixed in this fork via per-conversation selection scoping. If you still see it, the anchor check could not resolve the conversation root — report it. |
+| Button never appears after selecting text | Selection is outside the transcript, the page wasn't refreshed, or the `insert` row is missing. |
+| Button appears but click does nothing | Hard-refresh (Cmd/Ctrl+Shift+R) to drop a stale bundle. |
 
 ## Development
 
-The compiled `lib/` is committed, so normal installs never need a build. To hack on it:
-
 ```bash
-git clone https://github.com/lzbaclz/dsh-selection-ask.git
+git clone https://github.com/tigergao1518/dsh-selection-ask.git
 cd dsh-selection-ask
 pnpm install
 pnpm typecheck   # host + client tsc programs, zero errors
 pnpm build       # tsc(host) + tsc(client) + tsdown bundle
-pnpm verify      # offline smoke: manifest/exports/patch/bundle shape
-pnpm test:dom    # headless DOM test: mounts the built button in jsdom and asserts the quote flow      # offline smoke checks over the built artifacts
 ```
 
-- `src/index.ts` — host half (empty `apply`; exists so the roster scan finds the package).
-- `src/client/index.tsx` — browser half: injects CSS, registers into the `conversation.input.overlay` slot.
-- `src/client/SelectionAskButton.tsx` — the floating button: selection detection, positioning, quote writing.
-- `src/client/quote.ts` — pure `buildQuote` / `appendQuote` helpers (exercised offline by `verify`).
-- `src/client/styles.ts` — button CSS + HMR-safe `<style>` injection.
+Compatibility checks worth running after any DSH upgrade (they live in `docs/`):
 
-After changing `src/`, rebuild, reinstall (or re-`link:`), and refresh the page.
+```bash
+node docs/check-compat.mjs            # are the services/APIs/slots/tokens this plugin uses still there?
+node docs/check-persona-vars.mjs desktop docs/session-review-preset.yml   # any unresolvable {{...}} in persona templates?
+node docs/check-plugin-build.mjs      # build-artifact assertions
+```
 
-## How it works
+### Layout
 
-The plugin registers a component into the session-scoped `conversation.input.overlay` slot, which grants it the session input kit (`useInput`, `inputActions`). A document-level `selectionchange`/`mouseup` listener detects selections inside the transcript and renders a `position: fixed` button at the selection's bounding rect. Clicking builds a Markdown quote, joins it with the current draft, writes the full draft through `inputActions.setDraft` — the input machine's official write path — then focuses the composer textarea.
+- `src/index.ts` — host half: RPC route, sidebar-session factory, review factory, `read_session_log` tool.
+- `src/sideSession.ts` — the sidebar-session factory (`agents.create` + hand-built seed) and route resolution.
+- `src/reviewSession.ts` — the read-only review-session assembly.
+- `src/client/SelectionAskButton.tsx` — the floating button: selection detection, positioning, per-conversation scoping.
+- `src/client/sideAskTab.tsx` — the sidebar tab, its start-page guide entry, and the conversation host.
+- `src/client/SideDraftRestore.tsx` — pre-fills the sidebar composer without sending.
+- `docs/` — DSH-upgrade compatibility check scripts and the review preset.
 
-## Roadmap
+## Fork & upstream
 
-- [ ] Publish to npm (`dsh plugin --profile web add dsh-selection-ask`).
-- [ ] Optional keyboard shortcut (e.g. ⌘⇧Q) to quote the current selection.
-- [ ] Configurable button label / language.
+| | |
+|---|---|
+| Upstream | [lzbaclz/dsh-selection-ask](https://github.com/lzbaclz/dsh-selection-ask) — MIT, © lzbaclz |
+| Upstream last release | v0.1.1 (2026-09-17) |
+| This fork | [tigergao1518/dsh-selection-ask](https://github.com/tigergao1518/dsh-selection-ask) — MIT, same license |
+| Relationship | Fork; upstream is no longer actively updated, so this fork is maintained independently |
+
+Upstream issues and PRs are still the right place for problems in the **original selection-quote** behaviour. For sidebar conversations, session review, and the DSH-compatibility fixes, file issues here.
 
 ## License
 
-[MIT](./LICENSE) © lzbaclz
-
----
-
-Issues and PRs are welcome any time — [open an issue](https://github.com/lzbaclz/dsh-selection-ask/issues) and tell us what you built with it.
+[MIT](./LICENSE) — © lzbaclz (upstream) and contributors to this fork.

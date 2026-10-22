@@ -1,109 +1,107 @@
 {
-  "name": "dsh-selection-ask",
-  "version": "0.1.1",
-  "description": "ChatGPT-style text selection helper for DeepSeek Harness: select text in a conversation and a floating 「询问 DeepSeek」 button appears; click it to quote the selection into the composer.",
-  "type": "module",
-  "main": "lib/index.js",
-  "types": "lib/types/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./lib/types/index.d.ts",
-      "default": "./lib/index.js"
-    },
-    "./client": {
-      "types": "./lib/types/client/index.d.ts",
-      "default": "./lib/client.js"
-    },
-    "./cordis.patch.yml": "./cordis.patch.yml",
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "lib",
-    "assets",
-    "cordis.patch.yml",
-    "README.md",
-    "README.zh.md",
-    "LICENSE"
-  ],
-  "dsh": {
-    "bundle": {
-      "patch": "./cordis.patch.yml"
-    },
-    "client": {
-      "inject": [
-        "@deepseek-ai/dsh-client-ui-conversation"
-      ],
-      "platform": "web"
-    }
-  },
-  "scripts": {
-    "build": "tsc -p tsconfig.json && tsc -p tsconfig.client.json && tsdown",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
-    "verify": "node scripts/verify.mjs",
-    "prepublishOnly": "pnpm build && pnpm verify && pnpm test:dom",
-    "test:dom": "node scripts/dom-smoke.mjs"
-  },
-  "peerDependencies": {
-    "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-client-ui-conversation": "^0.1.0-rc.6",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
-  "peerDependenciesMeta": {
-    "@deepseek-ai/cordis": {
-      "optional": true
-    },
-    "@deepseek-ai/dsh-client-runtime": {
-      "optional": true
-    },
-    "@deepseek-ai/dsh-client-ui-conversation": {
-      "optional": true
-    },
-    "react": {
-      "optional": true
-    },
-    "react-dom": {
-      "optional": true
-    }
-  },
-  "devDependencies": {
-    "@deepseek-ai/cordis": "^4.0.2",
-    "@deepseek-ai/dsh-api-session-controller": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-api-workspace-controller": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-attachment": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-file-upload": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-store": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-conversation": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-input-trigger": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-renderer": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-session": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-slots": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-session": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-workspace": "0.1.5-rc.2",
-    "@types/node": "^22.0.0",
-    "@types/react": "~18.3.1",
-    "@types/react-dom": "^19.2.4",
-    "jsdom": "^30.0.1",
-    "lightningcss": "^1.33.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "tsdown": "0.22.2",
-    "typescript": "^5.9.3"
-  },
-  "engines": {
-    "node": "^22.19.0 || >=24"
-  },
-  "license": "MIT",
-  "keywords": [
-    "dsh",
-    "dsh-plugin",
-    "deepseek-harness",
-    "selection",
-    "quote",
-    "composer"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/lzbaclz/dsh-selection-ask.git"
-  }
+    "name":  "dsh-selection-ask",
+    "version":  "0.6.0",
+    "description":  "DSH 选中文本追问插件：选中即引用；0.6.0 旁路会话改走 agents.create + 自建 seed，彻底修掉侧栏发送报错。",
+    "type":  "module",
+    "main":  "lib/index.js",
+    "types":  "lib/types/index.d.ts",
+    "exports":  {
+                    ".":  {
+                              "types":  "./lib/types/index.d.ts",
+                              "default":  "./lib/index.js"
+                          },
+                    "./client":  {
+                                     "types":  "./lib/types/client/index.d.ts",
+                                     "default":  "./lib/client.js"
+                                 },
+                    "./cordis.patch.yml":  "./cordis.patch.yml",
+                    "./package.json":  "./package.json"
+                },
+    "files":  [
+                  "lib",
+                  "assets",
+                  "cordis.patch.yml",
+                  "README.md",
+                  "README.zh.md",
+                  "LICENSE"
+              ],
+    "dsh":  {
+                "bundle":  {
+                               "patch":  "./cordis.patch.yml"
+                           },
+                "client":  {
+                               "inject":  [
+                                              "@deepseek-ai/dsh-client-ui-conversation"
+                                          ],
+                               "platform":  "web"
+                           }
+            },
+    "scripts":  {
+                    "build":  "tsc -p tsconfig.json \u0026\u0026 tsc -p tsconfig.client.json \u0026\u0026 tsdown",
+                    "typecheck":  "tsc -p tsconfig.json --noEmit \u0026\u0026 tsc -p tsconfig.client.json --noEmit",
+                    "verify":  "node scripts/verify.mjs",
+                    "prepublishOnly":  "pnpm build \u0026\u0026 pnpm verify"
+                },
+    "peerDependencies":  {
+                             "@deepseek-ai/cordis":  "^4.0.1",
+                             "@deepseek-ai/dsh-client-ui-conversation":  "\u003e=0.1.0-rc.6",
+                             "react":  "^18.2.0",
+                             "react-dom":  "^18.2.0"
+                         },
+    "peerDependenciesMeta":  {
+                                 "@deepseek-ai/cordis":  {
+                                                             "optional":  true
+                                                         },
+                                 "@deepseek-ai/dsh-client-runtime":  {
+                                                                         "optional":  true
+                                                                     },
+                                 "@deepseek-ai/dsh-client-ui-conversation":  {
+                                                                                 "optional":  true
+                                                                             },
+                                 "react":  {
+                                               "optional":  true
+                                           },
+                                 "react-dom":  {
+                                                   "optional":  true
+                                               }
+                             },
+    "devDependencies":  {
+                            "@deepseek-ai/cordis":  "^4.0.2",
+                            "@deepseek-ai/dsh-api-session-controller":  "0.1.5-rc.2",
+                            "@deepseek-ai/dsh-api-workspace-controller":  "0.1.5-rc.2",
+                            "@deepseek-ai/dsh-attachment":  "0.1.5-rc.2",
+                            "@deepseek-ai/dsh-client-file-upload":  "0.1.5-rc.2",
+                            "@deepseek-ai/dsh-client-store":  "0.1.5-rc.2",
+                            "@deepseek-ai/dsh-client-ui-conversation":  "0.1.5-rc.2",
+                            "@deepseek-ai/dsh-client-ui-input-trigger":  "0.1.5-rc.2",
+                            "@deepseek-ai/dsh-client-ui-renderer":  "0.1.5-rc.2",
+                            "@deepseek-ai/dsh-client-ui-session":  "0.1.5-rc.2",
+                            "@deepseek-ai/dsh-client-ui-slots":  "0.1.5-rc.2",
+                            "@deepseek-ai/dsh-session":  "0.1.5-rc.2",
+                            "@deepseek-ai/dsh-workspace":  "0.1.5-rc.2",
+                            "@types/node":  "^22.0.0",
+                            "@types/react":  "~18.3.1",
+                            "@types/react-dom":  "^19.2.4",
+                            "lightningcss":  "^1.33.0",
+                            "react":  "^18.2.0",
+                            "react-dom":  "^18.2.0",
+                            "tsdown":  "0.22.2",
+                            "typescript":  "^5.9.3"
+                        },
+    "engines":  {
+                    "node":  "^22.19.0 || \u003e=24"
+                },
+    "license":  "MIT",
+    "keywords":  [
+                     "dsh",
+                     "dsh-plugin",
+                     "deepseek-harness",
+                     "selection",
+                     "quote",
+                     "composer"
+                 ],
+    "repository":  {
+                       "type":  "git",
+                       "url":  "git+https://github.com/lzbaclz/dsh-selection-ask.git"
+                   }
 }

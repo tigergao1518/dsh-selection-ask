@@ -1,215 +1,171 @@
-# dsh-selection-ask
+# dsh-selection-ask（分支版）
 
 ![banner](assets/banner.png)
 
-[![npm](https://img.shields.io/npm/v/dsh-selection-ask.svg)](https://www.npmjs.com/package/dsh-selection-ask)
-[![npm downloads](https://img.shields.io/npm/dm/dsh-selection-ask.svg)](https://www.npmjs.com/package/dsh-selection-ask)
-[![license](https://img.shields.io/npm/l/dsh-selection-ask.svg)](LICENSE)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![node](https://img.shields.io/badge/node-%5E22.19%20%7C%7C%20%3E%3D24-5FA04E?logo=nodedotjs)](https://nodejs.org/)
-[![stars](https://img.shields.io/github/stars/lzbaclz/dsh-selection-ask.svg)](https://github.com/lzbaclz/dsh-selection-ask)
 [![dsh plugin](https://img.shields.io/badge/dsh-plugin-4d6bfe)](https://github.com/deepseek-ai/deepseek-harness)
 
-[English](README.md) · [安装](#安装) · [使用方法](#使用方法) · [开发](#开发) · [故障排查](#故障排查) · [许可证](#许可证)
+[English](README.md) · [分支与上游](#分支与上游) · [本分支新增能力](#本分支新增能力) · [安装](#安装) · [使用](#使用) · [开发](#开发) · [故障排除](#故障排除) · [许可](#许可)
 
-**选中即引用，一键问 DeepSeek。**
+**选中即引用，追问可选主线或侧栏——侧栏继承完整上下文，且绝不打断主线。**
 
-DeepSeek Harness 是一个以文本为先的终端 / agent 工作台，但「把上下文引用回对话」本该是一个手势，而不是复制粘贴的苦工。**dsh-selection-ask** 给 Web GUI 加上 ChatGPT 式的选区助手：在会话聊天流里**选中一段文字**，选区旁边就会浮出 **「询问 DeepSeek」** 按钮。点击它——选中文字即以 Markdown 引用（`> ` 前缀）写入输入框，输入框自动聚焦、光标停在末尾，直接打字追问即可。
+---
 
-## 为什么选它
+> ### 🍴 这是一个分支（fork）
+>
+> 基于 **[lzbaclz/dsh-selection-ask](https://github.com/lzbaclz/dsh-selection-ask)**（MIT，作者 lzbaclz）——原本只做「选中文本引用进输入框」这一个动作。上游最后一个版本是 **v0.1.1（2026-09-17）**，此后未再更新；本分支在同一份 MIT 许可下继续开发。
+>
+> **本分支新增**：继承主会话上下文的侧边栏对话、只读的会话复盘，以及一批 DSH 升级后的兼容性修复。详见[本分支新增能力](#本分支新增能力)。
+>
+> 本分支历次修复的完整踩坑记录见 [`docs/fork-notes.zh.md`](docs/fork-notes.zh.md)。
 
-- **零摩擦引用** —— 你在 ChatGPT 里熟悉的那套手势，在 DeepSeek Harness 里原样拥有。
-- **官方集成，不打补丁** —— 通过 harness 的 `inputActions.setDraft` 输入机 API 写入，撤销历史、草稿持久化全部照常；不碰 DSH 内部实现，不直接改 DOM 状态。
-- **一条命令安装** —— 编译好的 `lib/` 已提交进仓库，从 GitHub 安装无需任何构建步骤。
+---
 
-## 特性
+## 本分支新增能力
 
-- **按钮跟随选区** —— 用 `position: fixed` 定位到选区的屏幕坐标，自动贴边钳制，选区完全滚出视口后隐藏。
-- **只引用聊天流里的文字** —— 选区必须落在聊天流容器（`[data-conversation-scroll]`）内；在输入框（composer）里选中文字不会触发（把草稿引用回草稿没有意义）。
-- **引用感知的拼接** —— 多行选区逐行加 `> ` 前缀；草稿为空时直接替换，草稿非空时以空行隔开追加成独立段落。
-- **会话级作用域** —— 切换会话自动重置按钮状态；提问 / 审批 composer 接管输入区时按钮随默认输入条一起隐藏。
+上游 v0.1.1 把一件事做得很好：把选中的文本引用进输入框。本分支保留它，另加三项能力。
+
+### 1. 侧边栏对话——继承上下文，但不打断主线
+
+在主会话里选中文本，点 **「开侧栏追问」**，右侧栏会开一个新会话，**继承到目前为止的完整对话**。它有自己的 agent、自己的对话流、自己的模型路由；而主会话照常推进，侧栏里的问答也不会回流进主会话的模型上下文。
+
+选中的引用会**预填进侧栏输入框但不发送**——什么时候发由你决定。
+
+- **继承是真的，不是复制**：子会话用父会话的事件构造 seed 创建，因此确实带着上下文（实测：新建侧栏会话打开即有父会话完整记录，约 470 KB，而空会话约 10 KB）。
+- **绝不打断**：主会话的 agent 完全不受影响，不会取消任何轮次，不会干扰正在进行的生成。
+- **同一个模型**：侧栏会话沿用父会话的 provider/model 路由，回答口径与主线一致。
+
+### 2. 会话复盘——用数据判断，而不是凭印象
+
+会话头部多一个 **「复盘本会话」** 入口，打开一个**只读**的复盘会话。它不继承对话原文，而是从磁盘读会话日志，提炼过程数据——每轮 token 消耗、报错与重试聚集在哪几轮、上下文组成（到底是什么在占窗口）、哪些轮次跑偏——然后按优先级给出「改什么」。
+
+它不能写文件、不能执行命令（用专用只读预设锁死工具集），所以绝不会在复盘中途「顺手」开始改你的工作区。
+
+### 3. DSH 升级兼容性修复
+
+本分支是被 DSH 升级后的真实故障推着走的。其中几处属于结构性修复，如果你也在维护分支，值得知道：
+
+- **侧栏会话走 `agents.create` + 自建 seed，不用 `sessions.fork`**：`fork` 从不落盘；事后再补 persistence 会与恢复路径相撞（`already exists`）。`agents.create` 一步完成「进 store + 落盘 + 拿到写所有权」。
+- **`provider`/`model` 必须放在 `agentOptions` 里面**，它们**不是**顶层字段。写在顶层不会报错，但也不生效——错误只会在你发送消息时才暴露（`agent "…" has no provider/model`）。
+- **persona 模板里不能有 `{{cwd}}` / `{{model}}`**：`{{cwd}}` 根本没注册；`{{model}}` 只在会话已经有过请求头（即发过模型请求）时才有值。全新的侧栏会话两者皆空，persona 组装会在任何模型请求之前就抛错。
+- **选区按会话隔离**：侧栏会话和主会话同屏时，两边都会挂一个选区按钮、监听同一个全局 `selectionchange`。现在每个实例会校验选区是否属于**自己那个会话**，于是「存入本会话」只会写进正确的输入框。
+
+## 功能
+
+**上游原有（行为不变）：**
+
+- **按钮跟随选区**——按选区屏幕坐标定位（`position: fixed`），夹在视口内，选区滚出视口即隐藏。
+- **只引用对话文本**——选区必须在对话记录（`[data-conversation-scroll]`）或端内文档预览内；在输入框里选中不做任何事。
+- **引用感知的追加**——每行加 `> ` 前缀；草稿为空则替换，非空则作为独立段落追加。
+- **走官方接口，无 hack**——通过 harness 的 `inputActions.setDraft` 写入，撤销历史与草稿持久化都照常工作。
+
+**本分支新增：**
+
+- **侧边栏对话**——见上。输入卡片上两个按钮：「开侧栏追问」（次级）与「存入本会话」（主按钮，Enter 的默认动作）。
+- **会话复盘**——见上。
+- **侧边栏起始页入口**——起始页多一个「发起旁路对话」，不选文本也能直接开一个继承上下文的旁路会话。
+- **上下文组成分析**——复盘会报告到底是什么在吃上下文窗口（系统提示词、工具 schema、工具结果、注入的记忆），按占比排序，而不是只说一句「token 太多」。
 
 ## 环境要求
 
-- 带 `web` profile 的 DeepSeek Harness（`dsh web`），DSH 包版本为 `0.1.0-rc.6` 一代。
-- 浏览器打开 harness GUI（默认 `http://127.0.0.1:3080`）。
-- 从源码构建需要 Node `^22.19.0 || >=24` 和 pnpm；**直接安装不需要**（编译好的 `lib/` 已提交）。
+- DeepSeek Harness **桌面版**（本分支的侧栏与复盘路径依赖侧栏服务；单纯的选中引用在 `web` profile 下也能用）。
+- DSH 包版本 **0.2.1-rc.2** 或更新（针对 2026-10-17 桌面版构建实测）。
+- 安装预编译包无需额外环境；从源码构建需要 Node `^22.19.0 || >=24` 与 pnpm。
 
 ## 安装
 
-> **环境要求**：DSH ≥ `0.1.5-rc.2`（`next` 通道 / DSH Desktop 桌面版）。
->
-> | 插件版本 | 适配的 DSH |
-> |---|---|
-> | `0.1.1` | DSH ≥ `0.1.5-rc.2` |
-> | `0.1.0` | DSH `0.1.0-rc.x`（`dsh-client-runtime` 时代） |
+```bash
+dsh plugin --profile desktop add github:tigergao1518/dsh-selection-ask
+```
 
+然后**重启 DSH**——host 半的改动（RPC 路由与会话工厂）只在重启后生效。client 半的改动只需刷新页面。
 
-> **用 DSH Desktop 桌面版？** 在应用内终端执行同样的命令、**不用写 `--profile`**
-> （会自动指向 `desktop` profile）。首次安装需要重启一次；以后升级走热更新，无需重启。
-
-### 第 1 步：安装包
-
-**从 npm 安装（推荐，一条命令）**
+**从本地克隆安装：**
 
 ```bash
-dsh plugin --profile web add dsh-selection-ask
+git clone https://github.com/tigergao1518/dsh-selection-ask.git
+dsh plugin --profile desktop add link:/absolute/path/to/dsh-selection-ask
 ```
 
-**从 GitHub 安装**（最新提交，无需构建）
+> 编译产物 `lib/` 已提交，因此 `github:` 或 `link:` 安装拿到的就是可直接加载的产物，无需构建。
 
-```bash
-dsh plugin --profile web add github:lzbaclz/dsh-selection-ask
-```
+## 使用
 
-想固定版本可指定 tag：`dsh plugin --profile web add github:lzbaclz/dsh-selection-ask#v0.1.1`
+### 引用进主线（上游原有行为）
 
-**从本地克隆安装**
+1. 在对话记录里选中文本。
+2. 点 **「询问 DeepSeek」**。
+3. 引用进入输入框（`> 选中的文本`），输入框获得焦点、光标在末尾。补上你的问题再发——或者直接按 **Enter**（默认动作，等价于点「存入本会话」）。
 
-```bash
-git clone https://github.com/lzbaclz/dsh-selection-ask.git
-dsh plugin --profile web add link:/绝对路径/dsh-selection-ask
-```
+### 在侧栏追问，不打断主线
 
-### 第 2 步：激活
+1. 在主会话里选中文本。
+2. 点 **「询问 DeepSeek」**，再点 **「开侧栏追问」**（或从侧边栏起始页的「发起旁路对话」进入）。
+3. 侧栏会话打开，已继承完整上下文。引用预填进它的输入框——**不会自动发送**。检查一下、补上问题，想发再发。
 
-`dsh plugin add` 会把包自动登记进 profile 的 `dsh.profile.bundles` 列表，而本包自带 `cordis.patch.yml`，因此条目行会在**启动时自动插入**。下面两种激活路径**二选一，绝不要同时用**。
+主会话照常运行。你在侧栏问的任何内容都不会进入主线的模型上下文。
 
-**路径 A —— 重启（零 YAML 编辑；新安装推荐）**
+### 复盘会话
 
-重启 `dsh web`（如果还没启动就正常启动）。完成——不需要改任何配置文件。
-
-```bash
-# 停掉你的 dsh web 进程，然后：
-dsh web
-```
-
-**路径 B —— 运行中的服务器热激活（不重启）**
-
-直接用 `pnpm`（**不要用** `dsh plugin`，因为它会把包登记进 bundles），保持 bundles 列表不动，然后改 profile 的 patch 层——DSH 实时监听该文件并热应用：
-
-```bash
-cd ~/.dsh/profiles/web
-pnpm add github:lzbaclz/dsh-selection-ask
-```
-
-然后打开 `~/.dsh/profiles/web/cordis.patch.yml`，把 `[]` **替换**成 insert 块——文件必须保持合法的 YAML 列表：
-
-```yaml
-# 改之前：
-# Your patch layer for this dsh profile, applied after every bundle layer:
-# a top-level YAML array of loader patch entries (id-targeted config
-# overrides, disables, and insert lists; `!!js` expressions allowed).
-[]
-
-# 改之后：
-# Your patch layer for this dsh profile, applied after every bundle layer:
-# a top-level YAML array of loader patch entries (id-targeted config
-# overrides, disables, and insert lists; `!!js` expressions allowed).
-- insert:
-    - id: dsh-selection-ask
-      name: dsh-selection-ask
-      config: {}
-```
-
-保存文件并**刷新浏览器页面**——插件已加载。
-
-> ⚠️ **不要把路径 A 和路径 B 混用**（比如 `dsh plugin add` 之后又手动加 patch 行）：条目会被注册两次，`dsh web` 启动失败，报 `duplicate loader entry id: dsh-selection-ask`。
->
-> ⚠️ **不要"追加"** YAML 块到已有的 `[]` 后面——那会变成非法文件，`dsh web` 启动失败，报 `failed to parse patches`。请按上面示范把 `[]` 替换掉。
->
-> 如果你的 profile 不叫 `web`，换成你的 profile 名；自定义了 harness 主目录的话，把 `~/.dsh` 换成你的 `$DSH_HOME`。
-
-**旧版 profile**（由较早版本的 dsh 创建）可能缺少 `pnpm-workspace.yaml` 里的 `autoInstallPeers: false`。补上它，pnpm 就永远不会尝试自动安装预发布版本的 peer：
-
-```yaml
-packages:
-  - .
-
-nodeLinker: hoisted
-autoInstallPeers: false
-```
-
-### 第 3 步：验证
-
-刷新 GUI 页面，在聊天流里选中一句话——选区旁边应浮出 **「询问 DeepSeek」** 按钮。点击它，文字会以引用形式进入输入框。
-
-### 升级与热更新
-
-```sh
-dsh plugin --profile web add dsh-selection-ask@latest   # 拉取新版本（桌面版：用应用内终端）
-```
-
-DSH 组合里常驻 `dsh-client-hmr` 链（会话实测：桌面版组合 `- id: client-hmr`，未禁用），
-它**监听已安装插件 bundle 的变化并自动重载**——所以：
-
-- **升级已装插件**（同一条目、文件内容变化）→ 热更新，无需重启应用，页面通常自动生效
-- **首次新增插件**（名册增加条目）→ 需要重启一次 DSH 服务
-
-插件的样式、词典、组件注册都随 fiber 生命周期清理，热重载不会残留旧代码。
-
-## 使用方法
-
-1. 在会话聊天流里选中任意文字。
-2. 点击选区旁浮出的 **「询问 DeepSeek」** 按钮。
-3. 选中文字被引用进输入框（形如 `> 选中的文字`），输入框已聚焦、光标在末尾——直接输入追问并发送。
+点会话头部的 **「复盘本会话」**。一个只读复盘会话打开，报告报错与重试、上下文膨胀、跑偏轮次、可回退点。
 
 ## 卸载
 
 ```bash
-dsh plugin --profile web remove dsh-selection-ask
+dsh plugin --profile desktop remove dsh-selection-ask
 ```
 
-如果你用的是路径 B，还要把 `cordis.patch.yml` 里的 `insert` 块删掉（还原成 `[]`），然后刷新 / 重启。
+## 故障排除
 
-## 故障排查
-
-| 症状 | 原因与解法 |
+| 现象 | 原因与处理 |
 |---|---|
-| `dsh plugin add` 失败：`ERR_PNPM_NO_MATCHING_VERSION`，包名是 `@deepseek-ai/...` | 你的 profile 缺少 `pnpm-workspace.yaml` 里的 `autoInstallPeers: false`（旧版 profile），pnpm 尝试自动安装预发布版本（rc）的 peer 依赖而失败。补上这一行（见下文示例）、删掉 profile `package.json` dependencies 里多余的 `@deepseek-ai/*` 条目、删除 profile 的 `pnpm-lock.yaml`，然后重跑。本插件已把所有 peer 标记为 `optional`，因此永远不会触发自动安装。 |
-| `dsh web` 启动失败：`failed to parse patches` | insert 块被追加到了文件原有的 `[]` 后面，YAML 变成非法。把 `[]` 替换成 insert 块（见[路径 B](#第-2-步激活)）。 |
-| `dsh web` 启动失败：`duplicate loader entry id: dsh-selection-ask` | 插件被注册了两次——你既用了 `dsh plugin add`（会加 bundle）又手动加了 patch 行。删掉其中一个。 |
-| 用 `dsh plugin add` 装好后刷新页面没反应 | bundles 列表的变更在启动时才生效——重启 `dsh web`（路径 A），或改用热激活的路径 B。 |
-| 选中文字后按钮始终不出现 | 选区不在聊天流内（试试选一条聊天消息的文字）；或激活后没刷新页面；或 `insert` 行缺失。 |
-| 按钮出现但点击无效 | 浏览器缓存了旧 bundle——强制刷新页面（Cmd/Ctrl+Shift+R）。若本地重新构建过，先 `pnpm build` 再重新 `link:`。 |
-| 出现提问卡片时按钮消失 | 属预期行为：overlay 随默认输入条在接管状态下一起隐藏，接管结束后恢复。 |
-| `dsh plugin add` 失败 | 任何 pnpm 写法都支持（`link:`、`github:`、tarball URL）。检查 profile 路径是否在 `~/.dsh/profiles/` 下，以及 Node 版本。 |
+| `agent "…" has no provider/model` | 侧栏会话没有模型路由。先在**主会话**发一条消息（请求头就是侧栏会话继承的来源）。本分支已经把 `agentOptions` 透传下去，报这句说明当时确实没东西可继承。 |
+| `prompt variable "{{model}}" has no value` | persona 模板里还引用着 `{{model}}`，它只在会话发过模型请求后才有值。把预设 persona 的 `prefix` 改成不含变量的静态文本——本分支的 `docs/check-persona-vars.mjs` 正是用来扫这个的。 |
+| 侧栏发送报 `SessionPersistenceNotFoundError` | 你用的是走 `sessions.fork` 的旧构建（它从不落盘）。换成本分支的 `agents.create` 路径。 |
+| 选中引用跑进了侧栏输入框而不是主线 | 本分支已用按会话隔离的选区判定修掉。若仍出现，说明锚点没能解析出会话根，请提 issue。 |
+| 选中后按钮不出现 | 选区不在对话记录内、激活后没刷新页面，或 `insert` 行缺失。 |
+| 按钮出现但点了没反应 | 硬刷新（Cmd/Ctrl+Shift+R）清掉缓存的旧 bundle。 |
 
 ## 开发
 
-编译好的 `lib/` 已提交，正常安装永远不需要构建。想改代码：
-
 ```bash
-git clone https://github.com/lzbaclz/dsh-selection-ask.git
+git clone https://github.com/tigergao1518/dsh-selection-ask.git
 cd dsh-selection-ask
 pnpm install
-pnpm typecheck   # host + client 两段 tsc，零错误
+pnpm typecheck   # host + client 两个 tsc 程序，零错误
 pnpm build       # tsc(host) + tsc(client) + tsdown 打包
-pnpm verify      # 离线冒烟：manifest/exports/patch/产物形状
-pnpm test:dom    # 无头 DOM 测试：jsdom 里挂载真实组件，断言选区→引用→写入草稿      # 对构建产物做离线冒烟校验
 ```
 
-- `src/index.ts` —— host 半（空 `apply`；它的存在是为了让服务器插件名册扫描到本包）。
-- `src/client/index.tsx` —— 浏览器半：注入样式，注册进 `conversation.input.overlay` 插槽。
-- `src/client/SelectionAskButton.tsx` —— 悬浮按钮组件：选区检测 / 定位 / 引用写入。
-- `src/client/quote.ts` —— 纯逻辑 `buildQuote` / `appendQuote`（`verify` 离线测试的对象）。
-- `src/client/styles.ts` —— 按钮样式 + HMR 安全的 `<style>` 注入。
+DSH 升级后值得跑一遍的兼容性检查（都在 `docs/`）：
 
-改完 `src/` 后重新构建、重新安装（或重新 `link:`）包，再刷新页面即可。
+```bash
+node docs/check-compat.mjs            # 本插件用到的服务/API/插槽/主题 token 还在不在？
+node docs/check-persona-vars.mjs desktop docs/session-review-preset.yml   # persona 模板里有没有解析不了的 {{...}}？
+node docs/check-plugin-build.mjs      # 构建产物断言
+```
 
-## 原理
+### 目录
 
-插件把一个组件注册进会话级插槽 `conversation.input.overlay`，从而获得会话输入套件（`useInput`、`inputActions`）。组件在文档层监听 `selectionchange` / `mouseup`，检测到聊天流内的有效选区后，在选区包围盒处渲染一个 `position: fixed` 按钮。点击时把选区转成 Markdown 引用、与当前草稿拼接，通过输入机官方写入口 `inputActions.setDraft` 全文写入，最后聚焦输入框 textarea。
+- `src/index.ts` — host 半：RPC 路由、侧栏会话工厂、复盘工厂、`read_session_log` 工具。
+- `src/sideSession.ts` — 侧栏会话工厂（`agents.create` + 自建 seed）与模型路由解析。
+- `src/reviewSession.ts` — 只读复盘会话的组装。
+- `src/client/SelectionAskButton.tsx` — 浮动按钮：选区检测、定位、按会话隔离。
+- `src/client/sideAskTab.tsx` — 侧栏 tab、起始页指南入口、对话宿主。
+- `src/client/SideDraftRestore.tsx` — 把草稿预填进侧栏输入框，不发送。
+- `docs/` — DSH 升级兼容性检查脚本、复盘预设，以及[本分支的修复记录](docs/fork-notes.zh.md)。
 
-## 路线图
+## 分支与上游
 
-- [x] 发布到 npm（`dsh plugin --profile web add dsh-selection-ask`）—— 0.1.1 已上架。
-- [ ] 可选快捷键（如 ⌘⇧Q）一键引用当前选区。
-- [ ] 按钮文案 / 语言可配置。
+| | |
+|---|---|
+| 上游 | [lzbaclz/dsh-selection-ask](https://github.com/lzbaclz/dsh-selection-ask) — MIT，© lzbaclz |
+| 上游最后版本 | v0.1.1（2026-09-17） |
+| 本分支 | [tigergao1518/dsh-selection-ask](https://github.com/tigergao1518/dsh-selection-ask) — MIT，同一许可 |
+| 关系 | 分支；上游已不再活跃更新，故本分支独立维护 |
 
-## 许可证
+**原有「选中引用」行为的问题**仍应去上游提 issue / PR。侧栏对话、会话复盘、DSH 兼容性修复相关的问题，请在**本仓库**提。
 
-[MIT](./LICENSE) © lzbaclz
+## 许可
 
----
-
-随时欢迎提 Issue 和 PR——[开一个 issue](https://github.com/lzbaclz/dsh-selection-ask/issues) 告诉我们你用这个插件做了什么。
+[MIT](./LICENSE) — © lzbaclz（上游）及本分支贡献者。

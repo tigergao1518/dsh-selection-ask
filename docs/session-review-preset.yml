@@ -31,7 +31,12 @@
           - id: persona
             name: '@deepseek-ai/dsh-persona'
             config:
-              suffix: Your working directory is {{cwd}}.
+              # 2026-10-20：删除 suffix「Your working directory is {{cwd}}.」。
+              # 新版 dsh-agent-loop 不注册 {{cwd}}，保留会抛
+              #   unknown prompt variable "{{cwd}}" in section
+              #   "deployment:persona-suffix"; registered variables: provider, model
+              # 工作目录由 runtime context（Current working directory 一行）
+              # 自动注入，信息不丢失。
               # complete: true —— 让这段 prefix 成为本会话唯一的系统提示词。
               # 复盘会话必须彻底脱离「编码 agent」身份（否则它会忍不住想改代码、
               # 想干活），所以不保留全局 persona、工具引导、其他任何 section。
