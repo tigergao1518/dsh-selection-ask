@@ -1,7 +1,7 @@
 {
     "name":  "dsh-selection-ask",
-    "version":  "0.6.0",
-    "description":  "DSH 选中文本追问插件：选中即引用；0.6.0 旁路会话改走 agents.create + 自建 seed，彻底修掉侧栏发送报错。",
+    "version":  "0.7.0",
+    "description":  "DSH 选中文本追问插件（lzbaclz 原版的分支）：选中即引用；另加继承主会话上下文的侧边栏对话、只读会话复盘，以及 DSH 升级兼容性修复。",
     "type":  "module",
     "main":  "lib/index.js",
     "types":  "lib/types/index.d.ts",
@@ -102,6 +102,6 @@
                  ],
     "repository":  {
                        "type":  "git",
-                       "url":  "git+https://github.com/lzbaclz/dsh-selection-ask.git"
+                       "url":  "git+https://github.com/tigergao1518/dsh-selection-ask.git"
                    }
 }

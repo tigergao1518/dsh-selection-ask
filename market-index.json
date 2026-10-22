@@ -1,0 +1,41 @@
+{
+  "format": 1,
+  "title": {
+    "en": "tigergao1518's DSH plugin index",
+    "zh": "tigergao1518 的 DSH 插件索引"
+  },
+  "description": {
+    "en": "Independently maintained forks of DSH plugins. Currently lists dsh-selection-ask, a fork of lzbaclz's selection-quote plugin that adds sidebar conversations inheriting the main thread, read-only session review, and DSH-upgrade compatibility fixes.",
+    "zh": "独立维护的 DSH 插件分支。目前收录 dsh-selection-ask——lzbaclz 选中引用插件的一个分支，新增继承主会话上下文的侧边栏对话、只读会话复盘，以及 DSH 升级兼容性修复。"
+  },
+  "plugins": [
+    {
+      "name": "dsh-selection-ask",
+      "title": {
+        "en": "Selection Ask (with sidebar conversation)",
+        "zh": "选中追问（含侧边栏对话）"
+      },
+      "description": {
+        "en": "Select text in a DSH conversation to quote it into the composer, or open a sidebar session that inherits the whole context without interrupting the main thread. Also adds read-only session review. A fork of lzbaclz/dsh-selection-ask (MIT), maintained independently since upstream stopped updating at v0.1.1.",
+        "zh": "在 DSH 对话里选中文本即可引用进输入框；也可以开一个继承完整上下文的侧边栏会话追问，且绝不打断主线。另加只读的会话复盘。是 lzbaclz/dsh-selection-ask（MIT）的分支，上游停在 v0.1.1 后由本分支独立维护。"
+      },
+      "icon": "assets/banner.png",
+      "author": "tigergao1518",
+      "homepage": "https://github.com/tigergao1518/dsh-selection-ask",
+      "versions": [
+        {
+          "version": "0.7.0",
+          "publishTimestamp": 1792648080,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/tigergao1518/dsh-selection-ask",
+            "commit": "PLACEHOLDER_COMMIT_SHA"
+          },
+          "engines": {
+            "dsh": ">=0.2.1-rc.2"
+          }
+        }
+      ]
+    }
+  ]
+}
