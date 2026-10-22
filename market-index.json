@@ -29,7 +29,7 @@
           "source": {
             "type": "git",
             "url": "https://github.com/tigergao1518/dsh-selection-ask",
-            "commit": "PLACEHOLDER_COMMIT_SHA"
+            "commit": "fc4e97c68e09b7620f1c9ed9aafca9ba0a90c372"
           },
           "engines": {
             "dsh": ">=0.2.1-rc.2"
