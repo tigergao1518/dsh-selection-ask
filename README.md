@@ -88,6 +88,19 @@ dsh plugin --profile desktop add link:/absolute/path/to/dsh-selection-ask
 
 > The compiled `lib/` is committed, so a `github:` or `link:` install fetches ready-to-load artifacts with no build step.
 
+### From the plugin market (optional)
+
+DSH ships **no official market** — the Discover tab lists only the index sources *you* add. To install from a market instead:
+
+1. Open **Plugins** in the Web sidebar → **Experimental plugins** → enable **Custom plugin markets**.
+2. Open the **Discover** tab and add this index source:
+   ```
+   https://raw.githubusercontent.com/tigergao1518/dsh-selection-ask/main/market-index.json
+   ```
+3. The plugin appears in the list — install it there.
+
+The one-line `dsh plugin add github:tigergao1518/dsh-selection-ask` command above is still the fastest path.
+
 ## Usage
 
 ### Quote into the main thread (upstream behaviour)

@@ -90,6 +90,19 @@ dsh plugin --profile desktop add link:/absolute/path/to/dsh-selection-ask
 
 > 编译产物 `lib/` 已提交，因此 `github:` 或 `link:` 安装拿到的就是可直接加载的产物，无需构建。
 
+### 从插件市场安装（可选）
+
+DSH **没有官方插件市场**——「发现」页只列**你自己添加**的索引源。想从市场浏览安装：
+
+1. 打开 Web 侧栏的**插件** → **实验性插件** → 启用**自定义插件市场**
+2. 进入**发现**标签页，添加索引源：
+   ```
+   https://raw.githubusercontent.com/tigergao1518/dsh-selection-ask/main/market-index.json
+   ```
+3. 列表里会出现本插件，点安装即可
+
+上面那行 `dsh plugin add github:tigergao1518/dsh-selection-ask` 命令仍然是最快的方式。
+
 ## 使用
 
 ### 引用进主线（上游原有行为）
